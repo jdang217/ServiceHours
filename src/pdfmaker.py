@@ -7,6 +7,7 @@ from fpdf import FPDF
 
 # Function to convert a CSV to JSON
 # Takes the file paths as arguments
+# May become obsolete if we read live data from google sheet
 def make_json(csvFilePath, jsonFilePath):
      
     # create a dictionary
@@ -30,22 +31,24 @@ def make_json(csvFilePath, jsonFilePath):
     with open(jsonFilePath, 'w', encoding='utf-8') as jsonf:
         jsonf.write(json.dumps(data, indent=4))
 
+# makes a pdf to fit on standard sized page
 def make_pdf(input):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font('Arial', 'B', 16)
     pdf.cell(40, 10, input)
-    pdf.output('tuto1.pdf', 'F')
+    pdf.output('../output/tuto1.pdf', 'F')
 
 
 
 # Driver Code
  
-# Decide the two file paths according to your
-# computer system
-csvFilePath = r'ServiceHoursTestInput.csv'
-jsonFilePath = r'ServiceHoursTestInput.json'
+# Decide the two file paths 
+csvFilePath = '../input/ServiceHoursTestInput.csv'
+jsonFilePath = '../output/ServiceHoursTestInput.json'
  
 # Call the make_json function
 make_json(csvFilePath, jsonFilePath)
+
+#make a pdf with hello world text
 make_pdf("hello world")
