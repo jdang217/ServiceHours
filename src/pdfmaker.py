@@ -10,7 +10,7 @@ from fpdf import FPDF
 # May become obsolete if we read live data from google sheet
 def make_json(csvFilePath, jsonFilePath):
      
-    # create a dictionary
+    # will hold json data
     data = {}
      
     # Open a csv reader called DictReader
@@ -21,7 +21,7 @@ def make_json(csvFilePath, jsonFilePath):
         # and add it to data
         for rows in csvReader:
              
-            # Assuming a column named 'No' to
+            # Assuming a column named 'Discord' to
             # be the primary key
             key = rows['Discord']
             data[key] = rows
@@ -31,13 +31,35 @@ def make_json(csvFilePath, jsonFilePath):
     with open(jsonFilePath, 'w', encoding='utf-8') as jsonf:
         jsonf.write(json.dumps(data, indent=4))
 
+    # pass json data to pdf maker
+    make_pdf(data)
+
+
 # makes a pdf to fit on standard sized page
-def make_pdf(input):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(40, 10, input)
-    pdf.output('../output/tuto1.pdf', 'F')
+def make_pdf(json_data):
+
+    #REQUEST TEMPLATE THAT WE ARE TRYING TO CREATE
+    #https://docs.google.com/document/d/1elTQRFnLgp2ktDsm021bli2rcBwSgzgwS4W-XwMqR44/edit?usp=sharing
+    for entry in json_data:
+
+        #all json members that will be on the service hours sheet
+        #DOES NOT INCLUDE EVERY MEMBER OF THE JSON OBJECT
+        info_categories = ["Timestamp", "Name", "Email", "Address", "Phone", "Service Hours", 
+         "Responsibilities", "School Name", "School Address", "School Phone Number"]
+
+        #makes a dictionary with empty values for all categories
+        data = dict.fromkeys(info_categories)
+
+        #sets values in dictionary for current entry
+        for category in info_categories:
+            data[category] = json_data[entry][category]
+        
+        #Format values onto pdf to recreate CS template
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(40, 10, data['Name'])
+        pdf.output('../output/' + data['Name'].replace(" ", "") + '.pdf', 'F')
 
 
 
@@ -47,8 +69,6 @@ def make_pdf(input):
 csvFilePath = '../input/ServiceHoursTestInput.csv'
 jsonFilePath = '../output/ServiceHoursTestInput.json'
  
-# Call the make_json function
+# Call the make_json function, which calls the make_pdf function
 make_json(csvFilePath, jsonFilePath)
 
-#make a pdf with hello world text
-make_pdf("hello world")
