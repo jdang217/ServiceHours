@@ -1,0 +1,11 @@
+{
+  "scriptFile": "PDFMaker.py",
+  "bindings": [
+    {
+      "name": "makePDF",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "0 * * * * *"
+    }
+  ]
+}
