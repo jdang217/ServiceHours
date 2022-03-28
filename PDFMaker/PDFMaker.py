@@ -5,6 +5,7 @@ import os
 #import json
 from fpdf import FPDF
 import phonenumbers
+import tempfile
 
 #gsheets
 import gspread
@@ -43,11 +44,26 @@ def make_pdf():
     sheet = client.open("Community Service Hours Request (Responses)").sheet1  # Open the spreadsheet
     sheet_data = sheet.get_all_records() #Get all records
 
+
     #REQUEST TEMPLATE THAT WE ARE TRYING TO CREATE
     #https://docs.google.com/document/d/1elTQRFnLgp2ktDsm021bli2rcBwSgzgwS4W-XwMqR44/edit?usp=sharing
-    #only process 100 requests to keep sendgrid free
-    for entry in sheet_data[:100]:
+    #only process 100 (50, 2 times a day) requests to keep sendgrid free
+    emails_sent = 0
+    for entry in sheet_data:
 
+        #only process 100 (50, 2 times a day) requests to keep sendgrid free
+        if emails_sent == 50:
+            break
+
+        #check if entry is validated by manager
+        worksheet = client.open("Community Service Hours Request (Responses)").worksheet(entry["Team"])
+        timestamp_cell = worksheet.find(entry["Timestamp"])
+        validation_cell = worksheet.cell(timestamp_cell.row, 1)
+
+        #if not validated, skip
+        if validation_cell.value == "FALSE":
+            continue
+    
         #all json members that will be on the service hours sheet
         #DOES NOT INCLUDE EVERY MEMBER OF THE JSON OBJECT
         info_categories = ["Timestamp", "Name", "Email", "Address", "Phone", "Service Hours", 
@@ -67,7 +83,9 @@ def make_pdf():
         #Format values onto pdf to recreate CS template
         file_name = "" + data['Name'].replace(" ", "") + 'ServiceHours.pdf'
         
-        format_pdf(data, file_name)
+        temp_file_path = tempfile.gettempdir()
+
+        format_pdf(data, file_name, temp_file_path)
 
         #send pdf back to user
         message = Mail(
@@ -81,12 +99,12 @@ def make_pdf():
 
         message.template_id = TEMPLATE_ID
 
-        with open('./PDFMaker/output/' + file_name, 'rb') as f:
+        with open(temp_file_path + "/" + file_name, 'rb') as f:
             pdf_data = f.read()
         encoded = base64.b64encode(pdf_data).decode()
-        os.remove('./PDFMaker/output/' + file_name)
-
-
+        os.remove(temp_file_path + "/" + file_name)
+        #encoded = base64.b64encode(pdf.encode("latin-1")).decode("latin-1")
+        
         attachment = Attachment()
         attachment.file_content = FileContent(encoded)
         attachment.file_type = FileType("application/pdf")
@@ -105,22 +123,28 @@ def make_pdf():
         except Exception as e:
             print(e)
         
+        emails_sent += 1
+
+        #delete record
+        main_timestamp_cell = sheet.find(entry["Timestamp"])
+        sheet.delete_rows(main_timestamp_cell.row)
+        
     
     #Delete 100 records after processing
-    num_records = getattr(sheet, "row_count")
+    #num_records = getattr(sheet, "row_count")
 
     #if there is only one record, cant delete that row so just clear it
-    if num_records == 2:
-        sheet.batch_clear(['A2:M2'])
+    #if num_records == 2:
+    #    sheet.batch_clear(['A2:M2'])
     #more than one record
-    else:
-        start_index = 2
-        end_index = min(100, num_records) #min of either 100 or number of records
-        sheet.add_rows(1) #prevents deleting frozen row error
-        sheet.delete_rows(start_index, end_index)
-        #sheet.batch_clear(['A2:M100'])
+    #else:
+    #    start_index = 2
+    #    end_index = min(100, num_records) #min of either 100 or number of records
+    #    sheet.add_rows(1) #prevents deleting frozen row error
+    #    sheet.delete_rows(start_index, end_index)
+    #    #sheet.batch_clear(['A2:M100'])
 
-def format_pdf(data, file_name):
+def format_pdf(data, file_name, temp_file_path):
     pdf = FPDF()
     pdf.add_page()
 
@@ -255,7 +279,9 @@ def format_pdf(data, file_name):
     pdf.cell(pdf.w - (SIDE_MARGIN * 2) + 1, 3, "8 The Green, Dover DE 19901", 0, 1, 'R')
     pdf.cell(pdf.w - (SIDE_MARGIN * 2) + 1, 3, "support@schoolsimplified.org", 0, 1, 'R')
 
-    pdf.output('./PDFMaker/output/' + file_name, 'F')
+    #complete_pdf = pdf.output('S')
+    #return complete_pdf
+    pdf.output(temp_file_path + "/" + file_name, 'F')
 
 
 def main(makePDF: func.TimerRequest) -> None:
